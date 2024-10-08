@@ -1,7 +1,3 @@
 export default function Home() {
-  return (
-    <div className="font-sans items-center justify-items-center min-h-screen p-8">
-      dapp
-    </div>
-  );
+  return <div className="min-h-screen items-center justify-items-center p-8 font-sans">dapp</div>
 }
