@@ -1,5 +1,5 @@
 import { mainnet, sepolia } from 'viem/chains'
-import { createConfig, http } from 'wagmi'
+import { cookieStorage, createConfig, createStorage, http } from 'wagmi'
 import { injected } from 'wagmi/connectors'
 
 export const config = createConfig({
@@ -10,4 +10,5 @@ export const config = createConfig({
     [sepolia.id]: http(),
   },
   ssr: true,
+  storage: createStorage({ storage: cookieStorage }),
 })
