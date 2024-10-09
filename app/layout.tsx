@@ -5,6 +5,7 @@ import { headers } from 'next/headers'
 import { cookieToInitialState } from 'wagmi'
 
 import Header from '@/components/Header'
+import SvgSymbols from '@/components/SvgSymbols'
 import { config } from '@/config'
 
 import Providers from './providers'
@@ -24,6 +25,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <SvgSymbols />
+
         <Providers initialState={initialState}>
           <Header />
           {children}
