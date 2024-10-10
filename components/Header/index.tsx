@@ -1,10 +1,12 @@
 'use client'
 
+import Link from 'next/link'
+
 import ConnectWallet from '../ConnectWallet'
 
 const navigation = [
   { name: 'Home', href: '/' },
-  { name: 'Basic', href: '/basic' },
+  { name: 'Transfer', href: '/transfer' },
 ]
 
 export default function Home() {
@@ -18,9 +20,9 @@ export default function Home() {
         </div>
         <div className="flex gap-x-12">
           {navigation.map((item) => (
-            <a key={item.name} href={item.href} className="font-medium leading-6 text-gray-900">
+            <Link key={item.name} href={item.href} className="font-medium leading-6 text-gray-900">
               {item.name}
-            </a>
+            </Link>
           ))}
         </div>
 

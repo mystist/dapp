@@ -1,3 +1,7 @@
+export const classNames = (...classes: string[]) => {
+  return classes.filter(Boolean).join(' ')
+}
+
 export const shortenAddress = (address: string, chars = 4) => {
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`
 }

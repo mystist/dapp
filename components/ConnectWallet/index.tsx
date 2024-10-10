@@ -42,10 +42,7 @@ export default function Home() {
   return (
     <div className="flex flex-1 items-center justify-end gap-x-6">
       {!address && (
-        <button
-          onClick={onConnect}
-          className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-        >
+        <button onClick={onConnect} className="btn btn-primary">
           Connect Wallet
         </button>
       )}
@@ -114,7 +111,7 @@ export default function Home() {
                 <MenuItem>
                   <div className="truncate px-3.5 py-2">
                     <div className="block text-sm text-gray-500">Balance</div>
-                    <div className="mt-1 text-sm">{isLoading ? <Spin /> : balanceDisplay}</div>
+                    <div className="mt-1 text-sm text-gray-700">{isLoading ? <Spin /> : balanceDisplay}</div>
                   </div>
                 </MenuItem>
               </div>

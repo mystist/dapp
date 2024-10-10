@@ -16,9 +16,11 @@
     "react": "19.0.0-rc-f994737d14-20240522",
     "react-dom": "19.0.0-rc-f994737d14-20240522",
     "viem": "2.x",
-    "wagmi": "^2.12.17"
+    "wagmi": "^2.12.17",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@tailwindcss/forms": "^0.5.9",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
