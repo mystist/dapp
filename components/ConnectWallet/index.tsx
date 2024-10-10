@@ -2,10 +2,11 @@
 
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { formatUnits } from 'viem'
 import { useAccount, useBalance, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
 
+import { useRefreshStore } from '@/store'
 import { copyToClipboard, formatBalance, shortenAddress } from '@/utils'
 
 import { Ping, Spin } from '../Animation'
@@ -15,7 +16,8 @@ export default function Home() {
   const { address, chain } = useAccount()
   const { disconnect } = useDisconnect()
   const { chains, switchChain, isPending } = useSwitchChain()
-  const { data: balanceData, isLoading } = useBalance({ address })
+  const { data: balanceData, isLoading, refetch, isRefetching } = useBalance({ address })
+  const counter = useRefreshStore((state) => state.counter)
 
   const connector = useMemo(() => {
     return connectors.find((item) => item.id === 'injected')
@@ -38,6 +40,10 @@ export default function Home() {
 
     return `${formatBalance(formatUnits(balanceData.value, balanceData.decimals))} ${balanceData.symbol}`
   }, [balanceData])
+
+  useEffect(() => {
+    refetch()
+  }, [counter, refetch])
 
   return (
     <div className="flex flex-1 items-center justify-end gap-x-6">
@@ -93,7 +99,7 @@ export default function Home() {
           <Menu as="div" className="relative inline-block text-left">
             <div>
               <MenuButton className="relative inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 font-medium text-gray-900 hover:bg-gray-50">
-                {isLoading && (
+                {(isLoading || isRefetching) && (
                   <div className="absolute -left-1 top-1">
                     <Ping />
                   </div>

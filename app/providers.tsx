@@ -6,7 +6,13 @@ import { type State, WagmiProvider } from 'wagmi'
 
 import { config } from '@/config'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 export default function Providers({ children, initialState }: { children: ReactNode; initialState: State | undefined }) {
   return (

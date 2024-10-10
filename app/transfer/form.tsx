@@ -1,12 +1,13 @@
 'use client'
 
-import { FormEvent, useCallback, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { parseEther } from 'viem'
 import { useAccount, useBalance, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
 import { z } from 'zod'
 
 import { Spin } from '@/components/Animation'
 import Notification from '@/components/Notification'
+import { useRefreshStore } from '@/store'
 import { classNames } from '@/utils'
 
 const schema = z.object({
@@ -26,6 +27,12 @@ export default function Form() {
 
   const { data: hash, sendTransaction, isPending } = useSendTransaction()
   const { isLoading, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+  const refresh = useRefreshStore((state) => state.refresh)
+
+  useEffect(() => {
+    if (isSuccess) refresh()
+  }, [isSuccess, refresh])
 
   const onSubmit = useCallback(
     (e: FormEvent) => {

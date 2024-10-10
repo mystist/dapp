@@ -38,7 +38,7 @@ export default function Home({ isOpen = false, setIsOpen, hash, isLoading, isSuc
                     </div>
                   )}
                   <div className="ml-3 w-0 flex-1 pt-0.5">
-                    <p className="text-sm font-medium text-gray-900">{isLoading ? 'Transaction Processing...' : isSuccess ? 'Transaction succeed' : 'Initializing...'}</p>
+                    <p className="text-sm font-medium text-gray-900">{isLoading ? 'Transaction Processing...' : isSuccess ? 'Transaction succeed' : 'Transaction initializing...'}</p>
                     {hash && blockExplorer && (
                       <p className="mt-1 text-sm text-gray-500">
                         <span className="mr-1">View on {blockExplorer.default.name}:</span>
