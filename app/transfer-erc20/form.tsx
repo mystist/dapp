@@ -1,17 +1,17 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useState } from 'react'
-import { parseUnits } from 'viem'
-import { useAccount } from 'wagmi'
-import { readContracts, simulateContract, waitForTransactionReceipt, writeContract } from 'wagmi/actions'
+import { encodeFunctionData, formatUnits, parseUnits } from 'viem'
+import { BaseError, useAccount } from 'wagmi'
+import { estimateGas, getGasPrice, readContracts, simulateContract, waitForTransactionReceipt, writeContract } from 'wagmi/actions'
 import { z } from 'zod'
 
-import { Spin } from '@/components/Animation'
+import { Ping, Spin } from '@/components/Animation'
 import Notification from '@/components/Notification'
 import { config } from '@/config'
 import { getContract } from '@/config/contracts'
 import { useRefreshStore } from '@/store'
-import { classNames } from '@/utils'
+import { classNames, formatBalance } from '@/utils'
 
 const schema = z.object({
   to: z
@@ -28,6 +28,10 @@ export default function Form() {
   const [hash, setHash] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [toAddress, setToAddress] = useState('')
+  const [amount, setAmount] = useState('')
+  const [isEstimating, setIsEstimating] = useState(false)
+  const [gasFeeDisplay, setGasFeeDisplay] = useState('')
 
   const { address, chain } = useAccount()
 
@@ -69,11 +73,8 @@ export default function Form() {
         const { to, amount } = schema.parse(formData)
         const value = parseUnits(amount, decimals)
 
-        if (balance < value) {
-          setErrorMsg('Insufficient balance')
-        } else {
+        if (balance >= value) {
           const { request } = await simulateContract(config, { ...mtkContract, functionName: 'transfer', args: [to, value] })
-          console.log(request)
           const hash = await writeContract(config, request)
 
           setHash(hash)
@@ -98,6 +99,74 @@ export default function Form() {
     },
     [address, chain],
   )
+
+  const estimate = useCallback(
+    async (to: `0x${string}`, amountValue: number) => {
+      if (!chain || !address) return
+
+      try {
+        const contract = getContract(chain.id, 'MTK')
+        if (!contract) return
+
+        setIsEstimating(true)
+
+        const mtkContract = {
+          abi: contract.abi,
+          address: contract.address,
+        }
+
+        const results = await readContracts(config, {
+          contracts: [
+            { ...mtkContract, functionName: 'balanceOf', args: [address] },
+            { ...mtkContract, functionName: 'decimals' },
+          ],
+        })
+
+        const balance = results[0].result as bigint
+        const decimals = results[1].result as number
+
+        const value = parseUnits(amountValue.toFixed(8), decimals)
+
+        if (balance < value) {
+          setErrorMsg('Insufficient balance')
+        } else {
+          const encodedData = encodeFunctionData({
+            abi: contract.abi,
+            functionName: 'transfer',
+            args: [to, value],
+          })
+
+          const gas = await estimateGas(config, { to: contract.address, data: encodedData })
+          const gasPrice = await getGasPrice(config)
+
+          const gasFeeDisplay = `${formatBalance(formatUnits(gas * gasPrice, decimals))} ETH`
+          setGasFeeDisplay(gasFeeDisplay)
+        }
+      } catch (error) {
+        console.log(error)
+
+        if (error instanceof BaseError) {
+          setErrorMsg(error.shortMessage)
+        }
+      } finally {
+        setIsEstimating(false)
+      }
+    },
+    [address, chain],
+  )
+
+  useEffect(() => {
+    setErrorMsg('')
+    setGasFeeDisplay('')
+
+    const to = toAddress as `0x${string}`
+    if (!to) return
+
+    const amountValue = parseFloat(amount)
+    if (Number.isNaN(amountValue) || amountValue < 0) return
+
+    estimate(to, amountValue)
+  }, [amount, estimate, toAddress])
 
   return (
     <>
@@ -128,6 +197,7 @@ export default function Form() {
                   required
                   minLength={42}
                   maxLength={42}
+                  onBlur={(e) => setToAddress(e.target.value)}
                   className="block w-full rounded-md border-0 py-1.5 text-sm leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400"
                 />
               </div>
@@ -145,6 +215,7 @@ export default function Form() {
                   placeholder="0.00"
                   required
                   min={0}
+                  onBlur={(e) => setAmount(e.target.value)}
                   className="block w-full rounded-md border-0 py-1.5 pr-12 text-sm leading-6 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400"
                 />
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
@@ -159,15 +230,21 @@ export default function Form() {
           <div className="mt-6">
             {address ? (
               <div className="flex items-center gap-x-6">
-                <button disabled={isPending} type="submit" className={classNames(isPending ? 'cursor-not-allowed opacity-75' : '', 'btn btn-secondary flex items-center gap-1')}>
+                <button disabled={isPending} type="submit" className={classNames(isPending ? 'cursor-not-allowed opacity-75' : '', 'btn btn-secondary relative flex items-center gap-1')}>
                   {isPending && (
                     <div className="text-gray-700">
                       <Spin />
                     </div>
                   )}
                   <span>Submit</span>
+                  {isEstimating && (
+                    <div className="absolute right-0 top-0 -mr-1 -mt-1">
+                      <Ping />
+                    </div>
+                  )}
                 </button>
                 {errorMsg && <span className="text-sm text-red-600">{errorMsg}</span>}
+                {(isEstimating || gasFeeDisplay) && <span className="text-sm">Estimated gas: {isEstimating ? 'Estimating...' : gasFeeDisplay}</span>}
               </div>
             ) : (
               <span className="font-medium">Please connect wallet</span>

@@ -1,14 +1,16 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useState } from 'react'
-import { parseEther } from 'viem'
-import { useAccount, useBalance, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
+import { formatUnits, parseEther } from 'viem'
+import { BaseError, useAccount, useBalance, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
+import { estimateGas, getGasPrice } from 'wagmi/actions'
 import { z } from 'zod'
 
-import { Spin } from '@/components/Animation'
+import { Ping, Spin } from '@/components/Animation'
 import Notification from '@/components/Notification'
+import { config } from '@/config'
 import { useRefreshStore } from '@/store'
-import { classNames } from '@/utils'
+import { classNames, formatBalance } from '@/utils'
 
 const schema = z.object({
   to: z
@@ -21,6 +23,10 @@ const schema = z.object({
 export default function Form() {
   const [errorMsg, setErrorMsg] = useState('')
   const [isOpen, setIsOpen] = useState(false)
+  const [toAddress, setToAddress] = useState('')
+  const [amount, setAmount] = useState('')
+  const [isEstimating, setIsEstimating] = useState(false)
+  const [gasFeeDisplay, setGasFeeDisplay] = useState('')
 
   const { address } = useAccount()
   const { data: balanceData } = useBalance({ address })
@@ -47,9 +53,7 @@ export default function Form() {
         const { to, amount } = schema.parse(formData)
         const value = parseEther(amount)
 
-        if (balanceData.value < value) {
-          setErrorMsg('Insufficient balance')
-        } else {
+        if (balanceData.value >= value) {
           sendTransaction({ to, value }, { onSuccess: () => setIsOpen(true) })
         }
       } catch (error) {
@@ -62,6 +66,50 @@ export default function Form() {
     },
     [balanceData, sendTransaction],
   )
+
+  const estimate = useCallback(
+    async (to: `0x${string}`, amountValue: number) => {
+      if (!balanceData || balanceData.decimals !== 18) return
+
+      try {
+        setIsEstimating(true)
+
+        const value = parseEther(amountValue.toFixed(8))
+
+        if (balanceData.value < value) {
+          setErrorMsg('Insufficient balance')
+        } else {
+          const gas = await estimateGas(config, { to, value })
+          const gasPrice = await getGasPrice(config)
+
+          const gasFeeDisplay = `${formatBalance(formatUnits(gas * gasPrice, balanceData.decimals))} ETH`
+          setGasFeeDisplay(gasFeeDisplay)
+        }
+      } catch (error) {
+        console.log(error)
+
+        if (error instanceof BaseError) {
+          setErrorMsg(error.shortMessage)
+        }
+      } finally {
+        setIsEstimating(false)
+      }
+    },
+    [balanceData],
+  )
+
+  useEffect(() => {
+    setErrorMsg('')
+    setGasFeeDisplay('')
+
+    const to = toAddress as `0x${string}`
+    if (!to) return
+
+    const amountValue = parseFloat(amount)
+    if (Number.isNaN(amountValue) || amountValue < 0) return
+
+    estimate(to, amountValue)
+  }, [amount, estimate, toAddress])
 
   return (
     <>
@@ -84,6 +132,7 @@ export default function Form() {
                   required
                   minLength={42}
                   maxLength={42}
+                  onBlur={(e) => setToAddress(e.target.value)}
                   className="block w-full rounded-md border-0 py-1.5 text-sm leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400"
                 />
               </div>
@@ -101,6 +150,7 @@ export default function Form() {
                   placeholder="0.00"
                   required
                   min={0}
+                  onBlur={(e) => setAmount(e.target.value)}
                   className="block w-full rounded-md border-0 py-1.5 pr-12 text-sm leading-6 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400"
                 />
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
@@ -115,15 +165,21 @@ export default function Form() {
           <div className="mt-6">
             {address ? (
               <div className="flex items-center gap-x-6">
-                <button disabled={isPending} type="submit" className={classNames(isPending ? 'cursor-not-allowed opacity-75' : '', 'btn btn-secondary flex items-center gap-1')}>
+                <button disabled={isPending} type="submit" className={classNames(isPending ? 'cursor-not-allowed opacity-75' : '', 'btn btn-secondary relative flex items-center gap-1')}>
                   {isPending && (
                     <div className="text-gray-700">
                       <Spin />
                     </div>
                   )}
                   <span>Submit</span>
+                  {isEstimating && (
+                    <div className="absolute right-0 top-0 -mr-1 -mt-1">
+                      <Ping />
+                    </div>
+                  )}
                 </button>
                 {errorMsg && <span className="text-sm text-red-600">{errorMsg}</span>}
+                {(isEstimating || gasFeeDisplay) && <span className="text-sm">Estimated gas: {isEstimating ? 'Estimating...' : gasFeeDisplay}</span>}
               </div>
             ) : (
               <span className="font-medium">Please connect wallet</span>
