@@ -1,12 +1,15 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useState } from 'react'
-import { parseEther } from 'viem'
-import { useAccount, useBalance, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
+import { parseUnits } from 'viem'
+import { useAccount } from 'wagmi'
+import { readContracts, simulateContract, waitForTransactionReceipt, writeContract } from 'wagmi/actions'
 import { z } from 'zod'
 
 import { Spin } from '@/components/Animation'
 import Notification from '@/components/Notification'
+import { config } from '@/config'
+import { getContract } from '@/config/contracts'
 import { useRefreshStore } from '@/store'
 import { classNames } from '@/utils'
 
@@ -21,12 +24,12 @@ const schema = z.object({
 export default function Form() {
   const [errorMsg, setErrorMsg] = useState('')
   const [isOpen, setIsOpen] = useState(false)
+  const [isPending, setIsPending] = useState(false)
+  const [hash, setHash] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
 
-  const { address } = useAccount()
-  const { data: balanceData } = useBalance({ address })
-
-  const { data: hash, sendTransaction, isPending } = useSendTransaction()
-  const { isLoading, isSuccess } = useWaitForTransactionReceipt({ hash })
+  const { address, chain } = useAccount()
 
   const refresh = useRefreshStore((state) => state.refresh)
 
@@ -35,22 +38,52 @@ export default function Form() {
   }, [isSuccess, refresh])
 
   const onSubmit = useCallback(
-    (e: FormEvent) => {
+    async (e: FormEvent) => {
       e.preventDefault()
       setErrorMsg('')
+      setIsPending(true)
 
-      if (!balanceData || balanceData.decimals !== 18) return
+      if (!address || !chain) return
+
+      const contract = getContract(chain.id, 'MTK')
+      if (!contract) return
+
+      const mtkContract = {
+        abi: contract.abi,
+        address: contract.address,
+      }
+
+      const results = await readContracts(config, {
+        contracts: [
+          { ...mtkContract, functionName: 'balanceOf', args: [address] },
+          { ...mtkContract, functionName: 'decimals' },
+        ],
+      })
+
+      const balance = results[0].result as bigint
+      const decimals = results[1].result as number
 
       const formData = Object.fromEntries(new FormData(e.target as HTMLFormElement))
 
       try {
         const { to, amount } = schema.parse(formData)
-        const value = parseEther(amount)
+        const value = parseUnits(amount, decimals)
 
-        if (balanceData.value < value) {
+        if (balance < value) {
           setErrorMsg('Insufficient balance')
         } else {
-          sendTransaction({ to, value }, { onSuccess: () => setIsOpen(true) })
+          const { request } = await simulateContract(config, { ...mtkContract, functionName: 'transfer', args: [to, value] })
+          console.log(request)
+          const hash = await writeContract(config, request)
+
+          setHash(hash)
+          setIsSuccess(false)
+          setIsOpen(true)
+          setIsLoading(true)
+
+          await waitForTransactionReceipt(config, { hash })
+
+          setIsSuccess(true)
         }
       } catch (error) {
         console.log(error)
@@ -58,17 +91,28 @@ export default function Form() {
         if (error instanceof z.ZodError) {
           setErrorMsg(error.errors[0].message || '')
         }
+      } finally {
+        setIsPending(false)
+        setIsLoading(false)
       }
     },
-    [balanceData, sendTransaction],
+    [address, chain],
   )
 
   return (
     <>
       <form onSubmit={onSubmit}>
         <div className="pb-12">
-          <h2 className="text-base font-semibold leading-7 text-gray-900">Transfer</h2>
-          <p className="mt-1 text-sm leading-6 text-gray-600">Send ETH to anther address through the Ethereum protocol (No Contact interaction).</p>
+          <h2 className="flex items-baseline gap-1 text-base font-semibold leading-7 text-gray-900">
+            <span>Transfer (ERC-20)</span>
+            <span className="text-sm font-normal">(Sepolia only)</span>
+          </h2>
+          <p className="mt-1 flex gap-1.5 text-sm leading-6 text-gray-600">
+            <span>{`Send ERC-20 token "MTK" to anther address through Smart Contract.`}</span>
+            <a href="https://sepolia.etherscan.io/address/0xa677F65460E1d6cb09c42308010e6AbBeB67cd5B" target="_blank" className="text-blue-700 underline">
+              View Contract
+            </a>
+          </p>
 
           <div className="mt-10 grid grid-cols-6 gap-x-6 gap-y-8">
             <div className="col-span-4">
@@ -105,7 +149,7 @@ export default function Form() {
                 />
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
                   <span id="price-currency" className="text-gray-500 sm:text-sm">
-                    ETH
+                    MTK
                   </span>
                 </div>
               </div>

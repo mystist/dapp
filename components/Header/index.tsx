@@ -7,6 +7,7 @@ import ConnectWallet from '../ConnectWallet'
 const navigation = [
   { name: 'Home', href: '/' },
   { name: 'Transfer', href: '/transfer' },
+  { name: 'Transfer (ERC-20)', href: '/transfer-erc20' },
 ]
 
 export default function Home() {
