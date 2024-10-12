@@ -1,24 +1,28 @@
 'use client'
 
+import BigNumber from 'bignumber.js'
 import { useSearchParams } from 'next/navigation'
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { formatUnits, parseEther } from 'viem'
+import { formatEther, parseEther } from 'viem'
 import { BaseError, useAccount, useBalance, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
-import { estimateGas, getGasPrice } from 'wagmi/actions'
+import { estimateFeesPerGas, estimateGas } from 'wagmi/actions'
 import { z } from 'zod'
 
 import { Ping, Spin } from '@/components/Animation'
 import Notification from '@/components/Notification'
 import { advanced, basic } from '@/config'
 import { useRefreshStore } from '@/store'
-import { classNames, formatBalance } from '@/utils'
+import { classNames } from '@/utils'
 
 const schema = z.object({
   to: z
     .string()
     .startsWith('0x', 'Address must start with 0x')
     .transform((val) => val as `0x${string}`),
-  amount: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, 'Invalid amount'),
+  amount: z
+    .string()
+    .refine((val) => !!val && +val >= 0, 'Invalid amount')
+    .transform((val) => BigNumber(val).toFixed()),
 })
 
 export default function Form() {
@@ -27,7 +31,8 @@ export default function Form() {
   const [toAddress, setToAddress] = useState('')
   const [amount, setAmount] = useState('')
   const [isEstimating, setIsEstimating] = useState(false)
-  const [gasFeeDisplay, setGasFeeDisplay] = useState('')
+  const [gasLimit, setGasLimit] = useState<bigint>()
+  const [maxFeePerGas, setMaxFeePerGas] = useState<bigint>()
 
   const searchParams = useSearchParams()
 
@@ -50,17 +55,16 @@ export default function Form() {
       e.preventDefault()
       setErrorMsg('')
 
-      if (!balanceData || balanceData.decimals !== 18) return
-
-      const formData = Object.fromEntries(new FormData(e.target as HTMLFormElement))
+      if (!gasLimit || !maxFeePerGas) return
 
       try {
+        const formData = Object.fromEntries(new FormData(e.target as HTMLFormElement))
+
         const { to, amount } = schema.parse(formData)
         const value = parseEther(amount)
+        const feeWithBuffer = BigInt(BigNumber(maxFeePerGas.toString()).times(1.2).toFixed(0))
 
-        if (balanceData.value >= value) {
-          sendTransaction({ to, value }, { onSuccess: () => setIsOpen(true) })
-        }
+        sendTransaction({ to, value, gas: gasLimit, maxFeePerGas: feeWithBuffer }, { onSuccess: () => setIsOpen(true) })
       } catch (error) {
         console.log(error)
 
@@ -69,26 +73,34 @@ export default function Form() {
         }
       }
     },
-    [balanceData, sendTransaction],
+    [gasLimit, maxFeePerGas, sendTransaction],
   )
 
-  const estimate = useCallback(
-    async (to: `0x${string}`, amountValue: number) => {
-      if (!balanceData || balanceData.decimals !== 18) return
+  const formattedGasFee = useMemo(() => {
+    if (!gasLimit || !maxFeePerGas) return
 
+    const gasFee = BigInt(BigNumber(gasLimit.toString()).times(maxFeePerGas.toString()).toFixed())
+
+    return `${formatEther(gasFee)} ETH`
+  }, [gasLimit, maxFeePerGas])
+
+  const estimate = useCallback(
+    async ({ to: rawTo, amount: rawAmount, balance }: { to: string; amount: string; balance: bigint }) => {
       try {
         setIsEstimating(true)
 
-        const value = parseEther(amountValue.toFixed(8))
+        const amount = BigNumber(rawAmount).toFixed()
+        const to = rawTo as `0x${string}`
+        const value = parseEther(amount)
 
-        if (balanceData.value < value) {
+        if (balance < value) {
           setErrorMsg('Insufficient balance')
         } else {
-          const gas = await estimateGas(config, { to, value })
-          const gasPrice = await getGasPrice(config)
+          const gasLimit = await estimateGas(config, { to, value })
+          const { maxFeePerGas } = await estimateFeesPerGas(config)
 
-          const gasFeeDisplay = `${formatBalance(formatUnits(gas * gasPrice, balanceData.decimals))} ETH`
-          setGasFeeDisplay(gasFeeDisplay)
+          setGasLimit(gasLimit)
+          if (maxFeePerGas) setMaxFeePerGas(maxFeePerGas)
         }
       } catch (error) {
         console.log(error)
@@ -100,7 +112,7 @@ export default function Form() {
         setIsEstimating(false)
       }
     },
-    [balanceData, config],
+    [config],
   )
 
   useEffect(() => {
@@ -109,16 +121,16 @@ export default function Form() {
 
   useEffect(() => {
     setErrorMsg('')
-    setGasFeeDisplay('')
+    setGasLimit(undefined)
+    setMaxFeePerGas(undefined)
 
-    const to = toAddress as `0x${string}`
-    if (!to) return
+    if (!toAddress || !amount || +amount < 0) return
+    if (!balanceData || balanceData.decimals !== 18) return
 
-    const amountValue = parseFloat(amount)
-    if (Number.isNaN(amountValue) || amountValue < 0) return
+    const { value: balance } = balanceData
 
-    estimate(to, amountValue)
-  }, [amount, estimate, toAddress])
+    estimate({ to: toAddress, amount, balance })
+  }, [amount, balanceData, estimate, toAddress])
 
   return (
     <>
@@ -174,21 +186,25 @@ export default function Form() {
           <div className="mt-6">
             {address ? (
               <div className="flex items-center gap-x-6">
-                <button disabled={isPending} type="submit" className={classNames(isPending ? 'cursor-not-allowed opacity-75' : '', 'btn btn-secondary relative flex items-center gap-1')}>
+                <button disabled={isPending || !formattedGasFee} type="submit" className={classNames(isPending || !formattedGasFee ? 'cursor-not-allowed opacity-50' : '', 'btn btn-secondary flex items-center gap-1')}>
                   {isPending && (
                     <div className="text-gray-700">
                       <Spin />
                     </div>
                   )}
                   <span>Submit</span>
-                  {isEstimating && (
-                    <div className="absolute right-0 top-0 -mr-1 -mt-1">
-                      <Ping />
-                    </div>
-                  )}
                 </button>
                 {errorMsg && <span className="text-sm text-red-600">{errorMsg}</span>}
-                {(isEstimating || gasFeeDisplay) && <span className="text-sm">Estimated gas: {isEstimating ? 'Estimating...' : gasFeeDisplay}</span>}
+                {(isEstimating || formattedGasFee) && (
+                  <span className="relative text-sm">
+                    {isEstimating && (
+                      <div className="absolute right-0 top-0 -mr-4 -mt-1">
+                        <Ping />
+                      </div>
+                    )}
+                    Estimated gas: {isEstimating ? 'Estimating...' : formattedGasFee}
+                  </span>
+                )}
               </div>
             ) : (
               <span className="font-medium">Please connect wallet</span>

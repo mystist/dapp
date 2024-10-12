@@ -1,3 +1,5 @@
+import BigNumber from 'bignumber.js'
+
 export const classNames = (...classes: string[]) => {
   return classes.filter(Boolean).join(' ')
 }
@@ -11,12 +13,12 @@ export const copyToClipboard = (address: string) => {
 }
 
 export const formatBalance = (rawBalance: string) => {
-  const balance = Number(rawBalance) // allow precision lose here
+  const balance = BigNumber(rawBalance)
 
-  if (balance >= 0.0001) {
-    return Number(balance.toFixed(4)).toString()
-  } else if (balance >= 0.000001) {
-    return Number(balance.toFixed(6)).toString()
+  if (balance.gte(0.0001)) {
+    return BigNumber(balance.toFixed(4)).toString()
+  } else if (balance.gte(0.000001)) {
+    return BigNumber(balance.toFixed(6)).toString()
   } else {
     return '<0.000001'
   }
