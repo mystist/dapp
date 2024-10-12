@@ -2,6 +2,8 @@
 
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo } from 'react'
 import { formatUnits } from 'viem'
 import { useAccount, useBalance, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
@@ -17,23 +19,27 @@ export default function Home() {
   const { disconnect } = useDisconnect()
   const { chains, switchChain, isPending } = useSwitchChain()
   const { data: balanceData, isLoading, refetch, isRefetching } = useBalance({ address })
+  const { openConnectModal } = useConnectModal()
+  const searchParams = useSearchParams()
+
   const counter = useRefreshStore((state) => state.counter)
 
-  const connector = useMemo(() => {
-    return connectors.find((item) => item.id === 'injected')
-  }, [connectors])
-
   const onConnect = useCallback(() => {
-    if (!connector) return
+    const isAdvanced = searchParams.get('advanced') === 'true'
 
-    connect({ connector })
-  }, [connect, connector])
+    if (isAdvanced) {
+      if (openConnectModal) openConnectModal()
+    } else {
+      const connector = connectors.find((item) => item.type === 'injected')
+      if (!connector) return
+
+      connect({ connector })
+    }
+  }, [connect, connectors, openConnectModal, searchParams])
 
   const onDisconnect = useCallback(() => {
-    if (!connector) return
-
-    disconnect({ connector })
-  }, [connector, disconnect])
+    disconnect()
+  }, [disconnect])
 
   const balanceDisplay = useMemo(() => {
     if (!balanceData) return ''
@@ -46,7 +52,7 @@ export default function Home() {
   }, [counter, refetch])
 
   return (
-    <div className="flex flex-1 items-center justify-end gap-x-6">
+    <div className="flex flex-1 items-center gap-x-6">
       {!address && (
         <button onClick={onConnect} className="btn btn-primary">
           Connect Wallet

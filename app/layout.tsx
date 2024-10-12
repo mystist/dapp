@@ -6,7 +6,7 @@ import { cookieToInitialState } from 'wagmi'
 
 import Header from '@/components/Header'
 import SvgSymbols from '@/components/SvgSymbols'
-import { config } from '@/config'
+import { advanced, basic } from '@/config'
 
 import Providers from './providers'
 
@@ -20,14 +20,15 @@ const geistMono = localFont({
 })
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const initialState = cookieToInitialState(config, headers().get('cookie'))
+  const basicInitialState = cookieToInitialState(basic, headers().get('cookie'))
+  const advancedInitialState = cookieToInitialState(advanced, headers().get('cookie'))
 
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col font-sans`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} relative flex min-h-screen flex-col font-sans`}>
         <SvgSymbols />
 
-        <Providers initialState={initialState}>
+        <Providers basicInitialState={basicInitialState} advancedInitialState={advancedInitialState}>
           <Header />
           {children}
         </Providers>

@@ -21,7 +21,7 @@ export default function Home({ isOpen = false, setIsOpen, hash, isLoading, isSuc
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-0 top-16 flex items-end px-4 py-6 sm:items-start sm:p-6">
+      <div className="pointer-events-none fixed inset-0 top-16 mt-3 flex items-end px-4 py-6 sm:items-start sm:p-6">
         <div className="flex w-full flex-col items-center space-y-4 sm:items-end">
           <Transition show={isOpen}>
             <div className="pointer-events-auto relative w-full max-w-sm rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition data-[closed]:data-[enter]:translate-y-2 data-[enter]:transform data-[closed]:opacity-0 data-[enter]:duration-300 data-[leave]:duration-100 data-[enter]:ease-out data-[leave]:ease-in data-[closed]:data-[enter]:sm:translate-x-2 data-[closed]:data-[enter]:sm:translate-y-0">

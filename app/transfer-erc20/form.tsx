@@ -1,6 +1,7 @@
 'use client'
 
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { encodeFunctionData, formatUnits, parseUnits } from 'viem'
 import { BaseError, useAccount } from 'wagmi'
 import { estimateGas, getGasPrice, readContracts, simulateContract, waitForTransactionReceipt, writeContract } from 'wagmi/actions'
@@ -8,7 +9,7 @@ import { z } from 'zod'
 
 import { Ping, Spin } from '@/components/Animation'
 import Notification from '@/components/Notification'
-import { config } from '@/config'
+import { advanced, basic } from '@/config'
 import { getContract } from '@/config/contracts'
 import { useRefreshStore } from '@/store'
 import { classNames, formatBalance } from '@/utils'
@@ -33,13 +34,17 @@ export default function Form() {
   const [isEstimating, setIsEstimating] = useState(false)
   const [gasFeeDisplay, setGasFeeDisplay] = useState('')
 
+  const searchParams = useSearchParams()
+
   const { address, chain } = useAccount()
 
   const refresh = useRefreshStore((state) => state.refresh)
 
-  useEffect(() => {
-    if (isSuccess) refresh()
-  }, [isSuccess, refresh])
+  const config = useMemo(() => {
+    const isAdvanced = searchParams.get('advanced') === 'true'
+
+    return isAdvanced ? advanced : basic
+  }, [searchParams])
 
   const onSubmit = useCallback(
     async (e: FormEvent) => {
@@ -97,7 +102,7 @@ export default function Form() {
         setIsLoading(false)
       }
     },
-    [address, chain],
+    [address, chain, config],
   )
 
   const estimate = useCallback(
@@ -152,8 +157,12 @@ export default function Form() {
         setIsEstimating(false)
       }
     },
-    [address, chain],
+    [address, chain, config],
   )
+
+  useEffect(() => {
+    if (isSuccess) refresh()
+  }, [isSuccess, refresh])
 
   useEffect(() => {
     setErrorMsg('')
