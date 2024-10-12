@@ -1,7 +1,3 @@
-'use client'
-
-import { connectorsForWallets } from '@rainbow-me/rainbowkit'
-import { walletConnectWallet } from '@rainbow-me/rainbowkit/wallets'
 import { mainnet, scroll, sepolia } from 'viem/chains'
 import { cookieStorage, createConfig, type CreateConfigParameters, createStorage, http } from 'wagmi'
 import { injected } from 'wagmi/connectors'
@@ -18,19 +14,29 @@ const configLiteral = {
 } as CreateConfigParameters
 
 const basicConnectors = [injected()]
+const basic = createConfig({ ...configLiteral, connectors: basicConnectors })
 
-const advancedConnectors = connectorsForWallets(
-  [
-    {
-      groupName: 'Mobile compat',
-      wallets: [walletConnectWallet],
-    },
-  ],
-  {
-    appName: 'dapp',
-    projectId: 'edd4a3a6d5256ef234836b3b30a2c000',
-  },
-)
+let advanced = basic
 
-export const basic = createConfig({ ...configLiteral, connectors: basicConnectors })
-export const advanced = createConfig({ ...configLiteral, connectors: advancedConnectors })
+if (typeof window !== 'undefined') {
+  ;(async () => {
+    const [{ connectorsForWallets }, { walletConnectWallet }] = await Promise.all([import('@rainbow-me/rainbowkit'), import('@rainbow-me/rainbowkit/wallets')])
+
+    const advancedConnectors = connectorsForWallets(
+      [
+        {
+          groupName: 'Mobile compat',
+          wallets: [walletConnectWallet],
+        },
+      ],
+      {
+        appName: 'dapp',
+        projectId: 'edd4a3a6d5256ef234836b3b30a2c000',
+      },
+    )
+
+    advanced = createConfig({ ...configLiteral, connectors: advancedConnectors })
+  })()
+}
+
+export { advanced, basic }
