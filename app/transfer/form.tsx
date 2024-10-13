@@ -62,7 +62,7 @@ export default function Form() {
 
         const { to, amount } = schema.parse(formData)
         const value = parseEther(amount)
-        const feeWithBuffer = BigInt(BigNumber(maxFeePerGas.toString()).times(1.2).toFixed(0))
+        const feeWithBuffer = BigInt(BigNumber(maxFeePerGas.toString()).times(1.1).toFixed(0))
 
         sendTransaction({ to, value, gas: gasLimit, maxFeePerGas: feeWithBuffer }, { onSuccess: () => setIsOpen(true) })
       } catch (error) {
