@@ -53,6 +53,8 @@ export class List {
   }
 
   async createItem(item: any) {
+    await this.loadList()
+
     const newItem = {
       id: Date.now() % 100000,
       ...item,
@@ -64,6 +66,8 @@ export class List {
   }
 
   async updateItem(key: any, value: any, updates: any) {
+    await this.loadList()
+
     const itemIndex = this.list.findIndex((item: any) => item[key] === value)
     if (itemIndex === -1) return null
 
@@ -74,6 +78,8 @@ export class List {
   }
 
   async deleteItem(id: number) {
+    await this.loadList()
+
     const initialLength = this.list.length
 
     this.list = this.list.filter((item: any) => item.id !== id)
@@ -90,7 +96,9 @@ let listInstance: any = null
 export async function getInstance() {
   if (!listInstance) {
     listInstance = new List()
-    await listInstance.init()
   }
+
+  await listInstance.init()
+
   return listInstance
 }

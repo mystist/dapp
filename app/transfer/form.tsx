@@ -45,7 +45,7 @@ export default function Form() {
   }, [searchParams])
 
   const onPostSubmit = useCallback(
-    ({ txHash, to, value: rawValue }: { txHash: string; to: string; value: bigint }) => {
+    ({ txHash, to, value: rawValue }: { txHash: string; to: `0x${string}`; value: bigint }) => {
       if (!chainId || !address) return
 
       setIsOpen(true)

@@ -5,6 +5,7 @@ export interface ContractInfo {
   address: `0x${string}`
   balance: bigint
   decimals: number
+  symbol: string
 }
 
 export interface Transaction {

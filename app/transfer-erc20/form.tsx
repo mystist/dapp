@@ -2,7 +2,7 @@
 
 import BigNumber from 'bignumber.js'
 import { useSearchParams } from 'next/navigation'
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { encodeFunctionData, formatEther, parseUnits } from 'viem'
 import { BaseError, useAccount } from 'wagmi'
 import { estimateFeesPerGas, estimateGas, readContracts, simulateContract, waitForTransactionReceipt, writeContract } from 'wagmi/actions'
@@ -12,7 +12,8 @@ import { Ping, Spin } from '@/components/Animation'
 import Notification from '@/components/Notification'
 import { advanced, basic } from '@/config'
 import { getContract } from '@/config/contracts'
-import { ContractInfo } from '@/interfaces'
+import { ContractInfo, Transaction } from '@/interfaces'
+import { actionPostTransaction, actionUpdateTransaction } from '@/requests/actions'
 import { transferSchema } from '@/schemas'
 import { useRefreshStore } from '@/store'
 import { classNames } from '@/utils'
@@ -21,9 +22,10 @@ export default function Form() {
   const [errorMsg, setErrorMsg] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, setIsPending] = useState(false)
-  const [hash, setHash] = useState('')
+  const [txHash, setTxHash] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [isError, setIsError] = useState(false)
   const [toAddress, setToAddress] = useState('')
   const [amount, setAmount] = useState('')
   const [isEstimating, setIsEstimating] = useState(false)
@@ -32,7 +34,10 @@ export default function Form() {
   const [contractInfo, setContractInfo] = useState<null | ContractInfo>(null)
 
   const searchParams = useSearchParams()
-  const { address, chain } = useAccount()
+  const { address, chainId } = useAccount()
+
+  const [isPosting, startPostTransition] = useTransition()
+  const [isUpdating, startUpdateTransition] = useTransition()
 
   const refresh = useRefreshStore((state) => state.refresh)
 
@@ -42,16 +47,46 @@ export default function Form() {
     return isAdvanced ? advanced : basic
   }, [searchParams])
 
+  const onPostSubmit = useCallback(
+    async ({ txHash, to, value: rawValue, decimals, symbol, action }: { txHash: `0x${string}`; to: string; value: bigint; decimals: number; symbol: string; action: string }) => {
+      if (!chainId || !address) return
+
+      try {
+        setTxHash(txHash)
+        setIsSuccess(false)
+        setIsOpen(true)
+
+        const now = new Date().toISOString()
+        const value = BigNumber(rawValue.toString()).toFixed()
+        const transaction: Transaction = { chainId, txHash, address, recipientAddress: to, value, decimals, symbol, action, date: now, status: 'pending' }
+
+        startPostTransition(() => actionPostTransaction(transaction))
+
+        setIsLoading(true)
+        await waitForTransactionReceipt(config, { hash: txHash })
+
+        setIsSuccess(true)
+      } catch (error) {
+        setIsError(true)
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [address, chainId, config],
+  )
+
   const onSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault()
-      setErrorMsg('')
-      setIsPending(true)
-
-      if (!contractInfo || !gasLimit || !maxFeePerGas) return
 
       try {
-        const { abi, address: contractAddress, balance, decimals } = contractInfo
+        setErrorMsg('')
+        setIsPending(true)
+
+        if (!chainId) return
+        if (!contractInfo || !gasLimit || !maxFeePerGas) return
+
+        const { abi, address: contractAddress, balance, decimals, symbol } = contractInfo
 
         const formData = Object.fromEntries(new FormData(e.target as HTMLFormElement))
 
@@ -60,17 +95,11 @@ export default function Form() {
         const feeWithBuffer = BigInt(BigNumber(maxFeePerGas.toString()).times(1.1).toFixed(0))
 
         if (balance >= value) {
-          const { request } = await simulateContract(config, { abi, address: contractAddress, functionName: 'transfer', gas: gasLimit, maxFeePerGas: feeWithBuffer, args: [to, value] })
-          const hash = await writeContract(config, request)
+          const action = 'transfer'
+          const { request } = await simulateContract(config, { abi, address: contractAddress, functionName: action, gas: gasLimit, maxFeePerGas: feeWithBuffer, args: [to, value] })
+          const txHash = await writeContract(config, request)
 
-          setHash(hash)
-          setIsSuccess(false)
-          setIsOpen(true)
-          setIsLoading(true)
-
-          await waitForTransactionReceipt(config, { hash })
-
-          setIsSuccess(true)
+          onPostSubmit({ txHash, to, value, decimals, symbol, action })
         }
       } catch (error) {
         console.log(error)
@@ -80,10 +109,9 @@ export default function Form() {
         }
       } finally {
         setIsPending(false)
-        setIsLoading(false)
       }
     },
-    [config, contractInfo, gasLimit, maxFeePerGas],
+    [chainId, contractInfo, gasLimit, maxFeePerGas, config, onPostSubmit],
   )
 
   const formattedGasFee = useMemo(() => {
@@ -137,9 +165,9 @@ export default function Form() {
 
   useEffect(() => {
     ;(async () => {
-      if (!address || !chain) return {}
+      if (!address || !chainId) return {}
 
-      const contract = getContract(chain.id, 'MTK')
+      const contract = getContract(chainId, 'MTK')
       if (!contract) return {}
 
       const mtkContract = { abi: contract.abi, address: contract.address }
@@ -148,16 +176,20 @@ export default function Form() {
         contracts: [
           { ...mtkContract, functionName: 'balanceOf', args: [address] },
           { ...mtkContract, functionName: 'decimals' },
+          { ...mtkContract, functionName: 'symbol' },
         ],
       })
 
-      setContractInfo({ abi: contract.abi, address: contract.address, balance: results[0].result as bigint, decimals: results[1].result as number })
+      setContractInfo({ abi: contract.abi, address: contract.address, balance: results[0].result as bigint, decimals: results[1].result as number, symbol: results[2].result as string })
     })()
-  }, [address, chain, config])
+  }, [address, chainId, config])
 
   useEffect(() => {
-    if (isSuccess) refresh()
-  }, [isSuccess, refresh])
+    if (!txHash || !(isSuccess || isError)) return
+
+    startUpdateTransition(() => actionUpdateTransaction(txHash, isSuccess ? 'success' : 'error'))
+    refresh()
+  }, [txHash, isError, isSuccess, refresh])
 
   useEffect(() => {
     setErrorMsg('')
@@ -168,6 +200,12 @@ export default function Form() {
 
     estimate({ to: toAddress, amount })
   }, [amount, estimate, toAddress])
+
+  useEffect(() => {
+    if (!chainId) return
+
+    setIsOpen(false)
+  }, [chainId])
 
   return (
     <>
@@ -231,13 +269,18 @@ export default function Form() {
           <div className="mt-6">
             {address ? (
               <div className="flex items-center gap-x-6">
-                <button disabled={isPending || !formattedGasFee} type="submit" className={classNames(isPending || !formattedGasFee ? 'cursor-not-allowed opacity-50' : '', 'btn btn-secondary flex items-center gap-1')}>
+                <button disabled={isPending || !formattedGasFee} type="submit" className={classNames(isPending || !formattedGasFee ? 'cursor-not-allowed opacity-50' : '', 'btn btn-secondary relative flex items-center gap-1')}>
                   {isPending && (
                     <div className="text-gray-700">
                       <Spin />
                     </div>
                   )}
                   <span>Submit</span>
+                  {(isPosting || isUpdating) && (
+                    <div className="absolute right-0 top-0 -mr-1 -mt-1">
+                      <Ping />
+                    </div>
+                  )}
                 </button>
                 {errorMsg && <span className="text-sm text-red-600">{errorMsg}</span>}
                 {(isEstimating || formattedGasFee) && (
@@ -247,7 +290,7 @@ export default function Form() {
                         <Ping />
                       </div>
                     )}
-                    Estimated gas: {isEstimating ? 'Estimating...' : formattedGasFee}
+                    <span>Estimated gas: {isEstimating ? 'Estimating...' : formattedGasFee}</span>
                   </span>
                 )}
               </div>
@@ -257,7 +300,7 @@ export default function Form() {
           </div>
         </div>
       </form>
-      <Notification isOpen={isOpen} setIsOpen={setIsOpen} hash={hash} isLoading={isLoading} isSuccess={isSuccess} />
+      <Notification isOpen={isOpen} setIsOpen={setIsOpen} hash={txHash} isLoading={isLoading} isSuccess={isSuccess} />
     </>
   )
 }
