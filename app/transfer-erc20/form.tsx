@@ -3,7 +3,7 @@
 import BigNumber from 'bignumber.js'
 import { useSearchParams } from 'next/navigation'
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { type Abi, encodeFunctionData, formatEther, parseUnits } from 'viem'
+import { encodeFunctionData, formatEther, parseUnits } from 'viem'
 import { BaseError, useAccount } from 'wagmi'
 import { estimateFeesPerGas, estimateGas, readContracts, simulateContract, waitForTransactionReceipt, writeContract } from 'wagmi/actions'
 import { z } from 'zod'
@@ -12,26 +12,10 @@ import { Ping, Spin } from '@/components/Animation'
 import Notification from '@/components/Notification'
 import { advanced, basic } from '@/config'
 import { getContract } from '@/config/contracts'
+import { ContractInfo } from '@/interfaces'
+import { transferSchema } from '@/schemas'
 import { useRefreshStore } from '@/store'
 import { classNames } from '@/utils'
-
-const schema = z.object({
-  to: z
-    .string()
-    .startsWith('0x', 'Address must start with 0x')
-    .transform((val) => val as `0x${string}`),
-  amount: z
-    .string()
-    .refine((val) => !!val && +val >= 0, 'Invalid amount')
-    .transform((val) => BigNumber(val).toFixed()),
-})
-
-interface ContractInfo {
-  abi: Abi
-  address: `0x${string}`
-  balance: bigint
-  decimals: number
-}
 
 export default function Form() {
   const [errorMsg, setErrorMsg] = useState('')
@@ -71,7 +55,7 @@ export default function Form() {
 
         const formData = Object.fromEntries(new FormData(e.target as HTMLFormElement))
 
-        const { to, amount } = schema.parse(formData)
+        const { to, amount } = transferSchema.parse(formData)
         const value = parseUnits(amount, decimals)
         const feeWithBuffer = BigInt(BigNumber(maxFeePerGas.toString()).times(1.1).toFixed(0))
 

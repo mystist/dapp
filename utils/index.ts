@@ -23,3 +23,5 @@ export const formatBalance = (rawBalance: string) => {
     return '<0.000001'
   }
 }
+
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))

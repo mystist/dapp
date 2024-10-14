@@ -2,7 +2,7 @@
 
 import BigNumber from 'bignumber.js'
 import { useSearchParams } from 'next/navigation'
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { formatEther, parseEther } from 'viem'
 import { BaseError, useAccount, useBalance, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
 import { estimateFeesPerGas, estimateGas } from 'wagmi/actions'
@@ -11,19 +11,11 @@ import { z } from 'zod'
 import { Ping, Spin } from '@/components/Animation'
 import Notification from '@/components/Notification'
 import { advanced, basic } from '@/config'
+import { Transaction } from '@/interfaces'
+import { actionPostTransaction, actionUpdateTransaction } from '@/requests/actions'
+import { transferSchema } from '@/schemas'
 import { useRefreshStore } from '@/store'
 import { classNames } from '@/utils'
-
-const schema = z.object({
-  to: z
-    .string()
-    .startsWith('0x', 'Address must start with 0x')
-    .transform((val) => val as `0x${string}`),
-  amount: z
-    .string()
-    .refine((val) => !!val && +val >= 0, 'Invalid amount')
-    .transform((val) => BigNumber(val).toFixed()),
-})
 
 export default function Form() {
   const [errorMsg, setErrorMsg] = useState('')
@@ -35,12 +27,14 @@ export default function Form() {
   const [maxFeePerGas, setMaxFeePerGas] = useState<bigint>()
 
   const searchParams = useSearchParams()
-
-  const { address } = useAccount()
+  const { address, chainId } = useAccount()
   const { data: balanceData } = useBalance({ address })
 
-  const { data: hash, sendTransaction, isPending } = useSendTransaction()
-  const { isLoading, isSuccess } = useWaitForTransactionReceipt({ hash })
+  const { data: txHash, sendTransaction, isPending } = useSendTransaction()
+  const { isLoading, isSuccess, isError } = useWaitForTransactionReceipt({ hash: txHash })
+
+  const [isPosting, startPostTransition] = useTransition()
+  const [isUpdating, startUpdateTransition] = useTransition()
 
   const refresh = useRefreshStore((state) => state.refresh)
 
@@ -50,21 +44,45 @@ export default function Form() {
     return isAdvanced ? advanced : basic
   }, [searchParams])
 
+  const onPostSubmit = useCallback(
+    ({ txHash, to, value: rawValue }: { txHash: string; to: string; value: bigint }) => {
+      if (!chainId || !address) return
+
+      setIsOpen(true)
+
+      const now = new Date().toISOString()
+      const value = BigNumber(rawValue.toString()).toFixed()
+      const transaction: Transaction = { chainId, txHash, address, recipientAddress: to, value, decimals: 18, symbol: 'ETH', action: 'send', date: now, status: 'pending' }
+
+      startPostTransition(() => actionPostTransaction(transaction))
+    },
+    [chainId, address],
+  )
+
   const onSubmit = useCallback(
     (e: FormEvent) => {
       e.preventDefault()
-      setErrorMsg('')
-
-      if (!gasLimit || !maxFeePerGas) return
-
       try {
+        setErrorMsg('')
+        setIsOpen(false)
+
+        if (!chainId) return
+        if (!gasLimit || !maxFeePerGas) return
+
         const formData = Object.fromEntries(new FormData(e.target as HTMLFormElement))
 
-        const { to, amount } = schema.parse(formData)
+        const { to, amount } = transferSchema.parse(formData)
         const value = parseEther(amount)
         const feeWithBuffer = BigInt(BigNumber(maxFeePerGas.toString()).times(1.1).toFixed(0))
 
-        sendTransaction({ to, value, gas: gasLimit, maxFeePerGas: feeWithBuffer }, { onSuccess: () => setIsOpen(true) })
+        sendTransaction(
+          { to, value, gas: gasLimit, maxFeePerGas: feeWithBuffer },
+          {
+            onSuccess: (txHash) => {
+              onPostSubmit({ txHash, to, value })
+            },
+          },
+        )
       } catch (error) {
         console.log(error)
 
@@ -73,7 +91,7 @@ export default function Form() {
         }
       }
     },
-    [gasLimit, maxFeePerGas, sendTransaction],
+    [gasLimit, maxFeePerGas, onPostSubmit, sendTransaction, chainId],
   )
 
   const formattedGasFee = useMemo(() => {
@@ -116,21 +134,31 @@ export default function Form() {
   )
 
   useEffect(() => {
-    if (isSuccess) refresh()
-  }, [isSuccess, refresh])
+    if (!txHash || !(isSuccess || isError)) return
+
+    startUpdateTransition(() => actionUpdateTransaction(txHash, isSuccess ? 'success' : 'error'))
+    refresh()
+  }, [txHash, isError, isSuccess, refresh])
 
   useEffect(() => {
     setErrorMsg('')
     setGasLimit(undefined)
     setMaxFeePerGas(undefined)
 
+    if (!chainId) return
     if (!toAddress || !amount || +amount < 0) return
     if (!balanceData || balanceData.decimals !== 18) return
 
     const { value: balance } = balanceData
 
     estimate({ to: toAddress, amount, balance })
-  }, [amount, balanceData, estimate, toAddress])
+  }, [amount, balanceData, estimate, toAddress, chainId])
+
+  useEffect(() => {
+    if (!chainId) return
+
+    setIsOpen(false)
+  }, [chainId])
 
   return (
     <>
@@ -186,13 +214,18 @@ export default function Form() {
           <div className="mt-6">
             {address ? (
               <div className="flex items-center gap-x-6">
-                <button disabled={isPending || !formattedGasFee} type="submit" className={classNames(isPending || !formattedGasFee ? 'cursor-not-allowed opacity-50' : '', 'btn btn-secondary flex items-center gap-1')}>
+                <button disabled={isPending || !formattedGasFee} type="submit" className={classNames(isPending || !formattedGasFee ? 'cursor-not-allowed opacity-50' : '', 'btn btn-secondary relative flex items-center gap-1')}>
                   {isPending && (
                     <div className="text-gray-700">
                       <Spin />
                     </div>
                   )}
                   <span>Submit</span>
+                  {(isPosting || isUpdating) && (
+                    <div className="absolute right-0 top-0 -mr-1 -mt-1">
+                      <Ping />
+                    </div>
+                  )}
                 </button>
                 {errorMsg && <span className="text-sm text-red-600">{errorMsg}</span>}
                 {(isEstimating || formattedGasFee) && (
@@ -202,7 +235,7 @@ export default function Form() {
                         <Ping />
                       </div>
                     )}
-                    Estimated gas: {isEstimating ? 'Estimating...' : formattedGasFee}
+                    <span>Estimated gas: {isEstimating ? 'Estimating...' : formattedGasFee}</span>
                   </span>
                 )}
               </div>
@@ -212,7 +245,7 @@ export default function Form() {
           </div>
         </div>
       </form>
-      <Notification isOpen={isOpen} setIsOpen={setIsOpen} hash={hash} isLoading={isLoading} isSuccess={isSuccess} />
+      <Notification isOpen={isOpen} setIsOpen={setIsOpen} hash={txHash} isLoading={isLoading} isSuccess={isSuccess} />
     </>
   )
 }

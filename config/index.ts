@@ -1,13 +1,14 @@
-import { mainnet, scroll, sepolia } from 'viem/chains'
+import { lineaSepolia, mainnet, scroll, sepolia } from 'viem/chains'
 import { cookieStorage, createConfig, type CreateConfigParameters, createStorage, http } from 'wagmi'
 import { injected } from 'wagmi/connectors'
 
 const configLiteral = {
-  chains: [mainnet, sepolia, scroll],
+  chains: [mainnet, scroll, sepolia, lineaSepolia],
   transports: {
     [mainnet.id]: http(),
-    [sepolia.id]: http(),
     [scroll.id]: http(),
+    [sepolia.id]: http(),
+    [lineaSepolia.id]: http(),
   },
   ssr: true,
   storage: createStorage({ storage: cookieStorage }),

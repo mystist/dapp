@@ -3,7 +3,7 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo } from 'react'
 import { formatUnits } from 'viem'
 import { useAccount, useBalance, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
@@ -21,6 +21,7 @@ export default function Home() {
   const { data: balanceData, isLoading, refetch, isRefetching } = useBalance({ address })
   const { openConnectModal } = useConnectModal()
   const searchParams = useSearchParams()
+  const router = useRouter()
 
   const counter = useRefreshStore((state) => state.counter)
 
@@ -46,6 +47,14 @@ export default function Home() {
 
     return `${formatBalance(formatUnits(balanceData.value, balanceData.decimals))} ${balanceData.symbol}`
   }, [balanceData])
+
+  const onSwitchChain = useCallback(
+    (chainId: number) => {
+      // refresh to trigger server component re-rendering
+      switchChain({ chainId }, { onSuccess: () => router.refresh() })
+    },
+    [router, switchChain],
+  )
 
   useEffect(() => {
     refetch()
@@ -90,7 +99,7 @@ export default function Home() {
               <div className="py-1">
                 {chains.map((item) => (
                   <MenuItem key={item.id}>
-                    <button onClick={() => switchChain({ chainId: item.id })} className="flex w-full gap-2 px-4 py-2 text-left text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900">
+                    <button onClick={() => onSwitchChain(item.id)} className="flex w-full gap-2 truncate px-4 py-2 text-left text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900">
                       <svg className="h-6 w-6">
                         <use href={`#icon-${item.name.toLowerCase()}`} />
                       </svg>
@@ -129,7 +138,9 @@ export default function Home() {
               </div>
               <div className="border-t border-gray-100 py-2">
                 <MenuItem>
-                  <button className="block w-full px-4 py-2 text-left text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900">Transaction history</button>
+                  <a href="/transaction-history" target="_blank" className="block w-full px-4 py-2 text-left text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900">
+                    Transaction history
+                  </a>
                 </MenuItem>
                 <MenuItem>
                   <button onClick={() => copyToClipboard(address)} className="block w-full px-4 py-2 text-left text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900">
