@@ -165,7 +165,7 @@ export default function Form() {
       <form onSubmit={onSubmit}>
         <div className="pb-12">
           <h2 className="text-base font-semibold leading-7 text-gray-900">Transfer</h2>
-          <p className="mt-1 text-sm leading-6 text-gray-600">Send ETH to anther address through the Ethereum protocol (No Contact interaction).</p>
+          <p className="mt-1 text-sm leading-6 text-gray-600">Send ETH to anther address through the Ethereum protocol.</p>
 
           <div className="mt-10 grid grid-cols-6 gap-x-6 gap-y-8">
             <div className="col-span-4">

@@ -34,13 +34,13 @@ export default function Home() {
       const connector = connectors.find((item) => item.type === 'injected')
       if (!connector) return
 
-      connect({ connector })
+      connect({ connector }, { onSuccess: () => router.refresh() })
     }
-  }, [connect, connectors, openConnectModal, searchParams])
+  }, [connect, connectors, openConnectModal, router, searchParams])
 
   const onDisconnect = useCallback(() => {
-    disconnect()
-  }, [disconnect])
+    disconnect(undefined, { onSuccess: () => router.refresh() })
+  }, [disconnect, router])
 
   const balanceDisplay = useMemo(() => {
     if (!balanceData) return ''
