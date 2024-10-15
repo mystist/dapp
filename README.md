@@ -52,4 +52,4 @@ Git workflow(Chunk based development):
 Develop on the develop or feat_<your_feature_name> branch, once the feature is complete, submit a Pull Request from develop to main.
 
 CI/CD:  
-Merge PR from master to dev/staging/production will build and deploy the relevant environment
+Merge PR from main to dev/staging/production will build and deploy the relevant environment
