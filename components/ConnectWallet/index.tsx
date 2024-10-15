@@ -56,6 +56,12 @@ export default function Home() {
     [router, switchChain],
   )
 
+  const isAdvanced = useMemo(() => searchParams.get('advanced') === 'true', [searchParams])
+
+  const getHref = (baseHref: string) => {
+    return isAdvanced ? `${baseHref}?advanced=true` : baseHref
+  }
+
   useEffect(() => {
     refetch()
   }, [counter, refetch])
@@ -138,7 +144,7 @@ export default function Home() {
               </div>
               <div className="border-t border-gray-100 py-2">
                 <MenuItem>
-                  <a href="/transaction-history" target="_blank" className="block w-full px-4 py-2 text-left text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900">
+                  <a href={getHref('/transaction-history')} target="_blank" className="block w-full px-4 py-2 text-left text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900">
                     Transaction history
                   </a>
                 </MenuItem>
