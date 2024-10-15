@@ -3,10 +3,9 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
-import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo } from 'react'
 import { formatUnits } from 'viem'
-import { useAccount, useBalance, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
+import { useAccount, useBalance, useDisconnect, useSwitchChain } from 'wagmi'
 
 import { useRefreshStore } from '@/store'
 import { copyToClipboard, formatBalance, shortenAddress } from '@/utils'
@@ -14,33 +13,21 @@ import { copyToClipboard, formatBalance, shortenAddress } from '@/utils'
 import { Ping, Spin } from '../Animation'
 
 export default function Home() {
-  const { connectors, connect } = useConnect()
   const { address, chain } = useAccount()
   const { disconnect } = useDisconnect()
   const { chains, switchChain, isPending } = useSwitchChain()
   const { data: balanceData, isLoading, refetch, isRefetching } = useBalance({ address })
   const { openConnectModal } = useConnectModal()
-  const searchParams = useSearchParams()
-  const router = useRouter()
 
   const counter = useRefreshStore((state) => state.counter)
 
   const onConnect = useCallback(() => {
-    const isAdvanced = searchParams.get('advanced') === 'true'
-
-    if (isAdvanced) {
-      if (openConnectModal) openConnectModal()
-    } else {
-      const connector = connectors.find((item) => item.type === 'injected')
-      if (!connector) return
-
-      connect({ connector }, { onSuccess: () => router.refresh() })
-    }
-  }, [connect, connectors, openConnectModal, router, searchParams])
+    if (openConnectModal) openConnectModal()
+  }, [openConnectModal])
 
   const onDisconnect = useCallback(() => {
-    disconnect(undefined, { onSuccess: () => router.refresh() })
-  }, [disconnect, router])
+    disconnect()
+  }, [disconnect])
 
   const balanceDisplay = useMemo(() => {
     if (!balanceData) return ''
@@ -50,24 +37,17 @@ export default function Home() {
 
   const onSwitchChain = useCallback(
     (chainId: number) => {
-      // refresh to trigger server component re-rendering
-      switchChain({ chainId }, { onSuccess: () => router.refresh() })
+      switchChain({ chainId })
     },
-    [router, switchChain],
+    [switchChain],
   )
 
-  const isAdvanced = useMemo(() => searchParams.get('advanced') === 'true', [searchParams])
-
-  const getHref = (baseHref: string) => {
-    return isAdvanced ? `${baseHref}?advanced=true` : baseHref
-  }
-
   useEffect(() => {
-    refetch()
-  }, [counter, refetch])
+    if (address) refetch()
+  }, [address, counter, refetch])
 
   return (
-    <div className="flex flex-1 items-center gap-x-6">
+    <div className="flex flex-1 items-center justify-end gap-x-6">
       {!address && (
         <button onClick={onConnect} className="btn btn-primary">
           Connect Wallet
@@ -78,19 +58,19 @@ export default function Home() {
         <>
           <Menu as="div" className="relative inline-block text-left">
             <div>
-              <MenuButton className="relative inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 font-medium text-gray-900 hover:bg-gray-50">
+              <MenuButton className="relative inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-1.5 font-medium text-gray-900 hover:bg-gray-50">
                 {isPending && (
                   <div className="absolute -left-1 top-1">
                     <Ping />
                   </div>
                 )}
                 {chain ? (
-                  <>
+                  <div className="flex gap-2 truncate">
                     <svg className="h-6 w-6">
                       <use href={`#icon-${chain.name.toLowerCase()}`} />
                     </svg>
                     {chain.name}
-                  </>
+                  </div>
                 ) : (
                   'unsupported chain'
                 )}
@@ -119,7 +99,7 @@ export default function Home() {
 
           <Menu as="div" className="relative inline-block text-left">
             <div>
-              <MenuButton className="relative inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 font-medium text-gray-900 hover:bg-gray-50">
+              <MenuButton className="relative inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-1.5 font-medium text-gray-900 hover:bg-gray-50">
                 {(isLoading || isRefetching) && (
                   <div className="absolute -left-1 top-1">
                     <Ping />
@@ -144,7 +124,7 @@ export default function Home() {
               </div>
               <div className="border-t border-gray-100 py-2">
                 <MenuItem>
-                  <a href={getHref('/transaction-history')} target="_blank" className="block w-full px-4 py-2 text-left text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900">
+                  <a href="/transaction-history" target="_blank" className="block w-full px-4 py-2 text-left text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900">
                     Transaction history
                   </a>
                 </MenuItem>

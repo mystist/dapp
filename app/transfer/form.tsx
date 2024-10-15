@@ -1,7 +1,6 @@
 'use client'
 
 import BigNumber from 'bignumber.js'
-import { useSearchParams } from 'next/navigation'
 import { FormEvent, useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { formatEther, parseEther } from 'viem'
 import { BaseError, useAccount, useBalance, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
@@ -10,7 +9,7 @@ import { z } from 'zod'
 
 import { Ping, Spin } from '@/components/Animation'
 import Notification from '@/components/Notification'
-import { advanced, basic } from '@/config'
+import { config } from '@/config'
 import { Transaction } from '@/interfaces'
 import { actionPostTransaction, actionUpdateTransaction } from '@/requests/actions'
 import { transferSchema } from '@/schemas'
@@ -26,7 +25,6 @@ export default function Form() {
   const [gasLimit, setGasLimit] = useState<bigint>()
   const [maxFeePerGas, setMaxFeePerGas] = useState<bigint>()
 
-  const searchParams = useSearchParams()
   const { address, chainId } = useAccount()
   const { data: balanceData } = useBalance({ address })
 
@@ -37,12 +35,6 @@ export default function Form() {
   const [isUpdating, startUpdateTransition] = useTransition()
 
   const refresh = useRefreshStore((state) => state.refresh)
-
-  const config = useMemo(() => {
-    const isAdvanced = searchParams.get('advanced') === 'true'
-
-    return isAdvanced ? advanced : basic
-  }, [searchParams])
 
   const onPostSubmit = useCallback(
     ({ txHash, to, value: rawValue }: { txHash: string; to: `0x${string}`; value: bigint }) => {
@@ -102,36 +94,33 @@ export default function Form() {
     return `${formatEther(gasFee)} ETH`
   }, [gasLimit, maxFeePerGas])
 
-  const estimate = useCallback(
-    async ({ to: rawTo, amount: rawAmount, balance }: { to: string; amount: string; balance: bigint }) => {
-      try {
-        setIsEstimating(true)
+  const estimate = useCallback(async ({ to: rawTo, amount: rawAmount, balance }: { to: string; amount: string; balance: bigint }) => {
+    try {
+      setIsEstimating(true)
 
-        const amount = BigNumber(rawAmount).toFixed()
-        const to = rawTo as `0x${string}`
-        const value = parseEther(amount)
+      const amount = BigNumber(rawAmount).toFixed()
+      const to = rawTo as `0x${string}`
+      const value = parseEther(amount)
 
-        if (balance < value) {
-          setErrorMsg('Insufficient balance')
-        } else {
-          const gasLimit = await estimateGas(config, { to, value })
-          const { maxFeePerGas } = await estimateFeesPerGas(config)
+      if (balance < value) {
+        setErrorMsg('Insufficient balance')
+      } else {
+        const gasLimit = await estimateGas(config, { to, value })
+        const { maxFeePerGas } = await estimateFeesPerGas(config)
 
-          setGasLimit(gasLimit)
-          if (maxFeePerGas) setMaxFeePerGas(maxFeePerGas)
-        }
-      } catch (error) {
-        console.log(error)
-
-        if (error instanceof BaseError) {
-          setErrorMsg(error.shortMessage)
-        }
-      } finally {
-        setIsEstimating(false)
+        setGasLimit(gasLimit)
+        if (maxFeePerGas) setMaxFeePerGas(maxFeePerGas)
       }
-    },
-    [config],
-  )
+    } catch (error) {
+      console.log(error)
+
+      if (error instanceof BaseError) {
+        setErrorMsg(error.shortMessage)
+      }
+    } finally {
+      setIsEstimating(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (!txHash || !(isSuccess || isError)) return

@@ -1,7 +1,6 @@
 'use client'
 
 import BigNumber from 'bignumber.js'
-import { useSearchParams } from 'next/navigation'
 import { FormEvent, useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { encodeFunctionData, formatEther, parseUnits } from 'viem'
 import { BaseError, useAccount } from 'wagmi'
@@ -10,7 +9,7 @@ import { z } from 'zod'
 
 import { Ping, Spin } from '@/components/Animation'
 import Notification from '@/components/Notification'
-import { advanced, basic } from '@/config'
+import { config } from '@/config'
 import { getContract } from '@/config/contracts'
 import { ContractInfo, Transaction } from '@/interfaces'
 import { actionPostTransaction, actionUpdateTransaction } from '@/requests/actions'
@@ -33,19 +32,12 @@ export default function Form() {
   const [maxFeePerGas, setMaxFeePerGas] = useState<bigint>()
   const [contractInfo, setContractInfo] = useState<null | ContractInfo>(null)
 
-  const searchParams = useSearchParams()
   const { address, chainId } = useAccount()
 
   const [isPosting, startPostTransition] = useTransition()
   const [isUpdating, startUpdateTransition] = useTransition()
 
   const refresh = useRefreshStore((state) => state.refresh)
-
-  const config = useMemo(() => {
-    const isAdvanced = searchParams.get('advanced') === 'true'
-
-    return isAdvanced ? advanced : basic
-  }, [searchParams])
 
   const onPostSubmit = useCallback(
     async ({ txHash, to, value: rawValue, decimals, symbol, action }: { txHash: `0x${string}`; to: string; value: bigint; decimals: number; symbol: string; action: string }) => {
@@ -72,7 +64,7 @@ export default function Form() {
         setIsLoading(false)
       }
     },
-    [address, chainId, config],
+    [address, chainId],
   )
 
   const onSubmit = useCallback(
@@ -111,7 +103,7 @@ export default function Form() {
         setIsPending(false)
       }
     },
-    [chainId, contractInfo, gasLimit, maxFeePerGas, config, onPostSubmit],
+    [chainId, contractInfo, gasLimit, maxFeePerGas, onPostSubmit],
   )
 
   const formattedGasFee = useMemo(() => {
@@ -160,7 +152,7 @@ export default function Form() {
         setIsEstimating(false)
       }
     },
-    [config, contractInfo],
+    [contractInfo],
   )
 
   useEffect(() => {
@@ -182,7 +174,7 @@ export default function Form() {
 
       setContractInfo({ abi: contract.abi, address: contract.address, balance: results[0].result as bigint, decimals: results[1].result as number, symbol: results[2].result as string })
     })()
-  }, [address, chainId, config])
+  }, [address, chainId])
 
   useEffect(() => {
     if (!txHash || !(isSuccess || isError)) return

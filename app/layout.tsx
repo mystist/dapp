@@ -1,9 +1,8 @@
 import './globals.css'
 
-import dynamic from 'next/dynamic'
 import localFont from 'next/font/local'
 
-import { Pulse } from '@/components/Animation'
+import Header from '@/components/Header'
 import SvgSymbols from '@/components/SvgSymbols'
 
 import Providers from './providers'
@@ -16,8 +15,6 @@ const geistMono = localFont({
   src: './fonts/GeistMonoVF.woff',
   variable: '--font-geist-mono',
 })
-
-const Header = dynamic(() => import('@/components/Header'), { ssr: false, loading: () => <Pulse /> })
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
