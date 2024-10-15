@@ -8,6 +8,7 @@ Best practice for the react server component and web3 dapp development:
   Dynamic import will just put a placeholder element on the server side and do a replacement on the client side when ready.
 
 Highlights:
+- auto lint, auto fix, auto sort imports, tailwindcss classes of the code, for a same development standard across the project contributors
 - use svg symbols to avoid bulk assets requests
 - form validation with Zod
 - refetch balance after transaction made, by sharing states between components with Zustand
