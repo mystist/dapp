@@ -39,7 +39,7 @@ Deprecated:
 - use cookie storage as initial state to avoid a flash of "empty" data before hydration
 - basic / advanced wallet toggle to connect with built in logic or the rainbowkit modal
 
-### Development
+## Development
 
 Run on localhost:
 
