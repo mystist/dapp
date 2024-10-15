@@ -9,9 +9,17 @@ import { Transaction } from '@/interfaces'
 import { shortenAddress } from '@/utils'
 
 export default function Transactions({ transactionsPromise }: { transactionsPromise: Promise<Transaction[]> }) {
-  const transactions = use(transactionsPromise)
+  // use all transactions just for react server component poc purpose
+  // need to change to server actions and fetch it for client component
+  const allTransactions = use(transactionsPromise)
 
-  const { chain } = useAccount()
+  const { chain, address } = useAccount()
+
+  const transactions = useMemo(() => {
+    if (!chain || !address) return []
+
+    return allTransactions.filter((item) => item.address === address && item.chainId === chain.id)
+  }, [address, allTransactions, chain])
 
   const blockExplorer = useMemo(() => {
     if (!chain) return

@@ -1,12 +1,10 @@
 import './globals.css'
 
+import dynamic from 'next/dynamic'
 import localFont from 'next/font/local'
-import { headers } from 'next/headers'
-import { cookieToInitialState } from 'wagmi'
 
-import Header from '@/components/Header'
+import { Pulse } from '@/components/Animation'
 import SvgSymbols from '@/components/SvgSymbols'
-import { advanced, basic } from '@/config'
 
 import Providers from './providers'
 
@@ -19,16 +17,15 @@ const geistMono = localFont({
   variable: '--font-geist-mono',
 })
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const basicInitialState = cookieToInitialState(basic, headers().get('cookie'))
-  const advancedInitialState = cookieToInitialState(advanced, headers().get('cookie'))
+const Header = dynamic(() => import('@/components/Header'), { ssr: false, loading: () => <Pulse /> })
 
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} relative flex min-h-screen flex-col font-sans`}>
         <SvgSymbols />
 
-        <Providers basicInitialState={basicInitialState} advancedInitialState={advancedInitialState}>
+        <Providers>
           <Header />
           {children}
         </Providers>

@@ -6,7 +6,7 @@ import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 import { type ReactNode, useMemo } from 'react'
-import { type State, WagmiProvider } from 'wagmi'
+import { WagmiProvider } from 'wagmi'
 
 import { advanced, basic } from '@/config'
 
@@ -18,13 +18,13 @@ const queryClient = new QueryClient({
   },
 })
 
-export default function Providers({ children, basicInitialState, advancedInitialState }: { children: ReactNode; basicInitialState: State | undefined; advancedInitialState: State | undefined }) {
+export default function Providers({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams()
 
   const isAdvanced = useMemo(() => searchParams.get('advanced') === 'true', [searchParams])
 
   return (
-    <WagmiProvider config={isAdvanced ? advanced : basic} initialState={isAdvanced ? advancedInitialState : basicInitialState}>
+    <WagmiProvider config={isAdvanced ? advanced : basic}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider modalSize="compact">{children}</RainbowKitProvider>
       </QueryClientProvider>

@@ -17,10 +17,7 @@ export const actionUpdateTransaction = async (txHash: string, status: string) =>
   await instance.updateItem('txHash', txHash, { status })
 }
 
-export const actionFetchTransactions = async (address: string | undefined, chainId: number | undefined) => {
-  if (!address || !chainId) return []
-
+export const actionFetchTransactions = async () => {
   const instance = await getInstance()
-  const list = await instance.getList('address', address)
-  return list.filter((item: Transaction) => item.chainId === chainId)
+  return await instance.getList()
 }

@@ -163,86 +163,81 @@ export default function Form() {
   return (
     <>
       <form onSubmit={onSubmit}>
-        <div className="pb-12">
-          <h2 className="text-base font-semibold leading-7 text-gray-900">Transfer</h2>
-          <p className="mt-1 text-sm leading-6 text-gray-600">Send ETH to anther address through the Ethereum protocol.</p>
-
-          <div className="mt-10 grid grid-cols-6 gap-x-6 gap-y-8">
-            <div className="col-span-4">
-              <label htmlFor="to" className="block text-sm font-medium leading-6 text-gray-900">
-                Recipient address
-              </label>
-              <div className="mt-2">
-                <input
-                  id="to"
-                  name="to"
-                  type="text"
-                  placeholder="0x..."
-                  required
-                  minLength={42}
-                  maxLength={42}
-                  onBlur={(e) => setToAddress(e.target.value)}
-                  className="block w-full rounded-md border-0 py-1.5 text-sm leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400"
-                />
-              </div>
+        <div className="mt-10 grid grid-cols-6 gap-x-6 gap-y-8">
+          <div className="col-span-4">
+            <label htmlFor="to" className="block text-sm font-medium leading-6 text-gray-900">
+              Recipient address
+            </label>
+            <div className="mt-2">
+              <input
+                id="to"
+                name="to"
+                type="text"
+                placeholder="0x..."
+                required
+                minLength={42}
+                maxLength={42}
+                onBlur={(e) => setToAddress(e.target.value)}
+                className="block w-full rounded-md border-0 py-1.5 text-sm leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400"
+              />
             </div>
-            <div className="col-span-2">
-              <label htmlFor="amount" className="block text-sm font-medium leading-6 text-gray-900">
-                Amount
-              </label>
-              <div className="relative mt-2 rounded-md shadow-sm">
-                <input
-                  id="amount"
-                  name="amount"
-                  type="number"
-                  step="any"
-                  placeholder="0.00"
-                  required
-                  min={0}
-                  onBlur={(e) => setAmount(e.target.value)}
-                  className="block w-full rounded-md border-0 py-1.5 pr-12 text-sm leading-6 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400"
-                />
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                  <span id="price-currency" className="text-gray-500 sm:text-sm">
-                    ETH
-                  </span>
-                </div>
+          </div>
+          <div className="col-span-2">
+            <label htmlFor="amount" className="block text-sm font-medium leading-6 text-gray-900">
+              Amount
+            </label>
+            <div className="relative mt-2 rounded-md shadow-sm">
+              <input
+                id="amount"
+                name="amount"
+                type="number"
+                step="any"
+                placeholder="0.00"
+                required
+                min={0}
+                onBlur={(e) => setAmount(e.target.value)}
+                className="block w-full rounded-md border-0 py-1.5 pr-12 text-sm leading-6 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400"
+              />
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                <span id="price-currency" className="text-gray-500 sm:text-sm">
+                  ETH
+                </span>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="mt-6">
-            {address ? (
-              <div className="flex items-center gap-x-6">
-                <button disabled={isPending || !formattedGasFee} type="submit" className={classNames(isPending || !formattedGasFee ? 'cursor-not-allowed opacity-50' : '', 'btn btn-secondary relative flex items-center gap-1')}>
-                  {isPending && (
-                    <div className="text-gray-700">
-                      <Spin />
-                    </div>
-                  )}
-                  <span>Submit</span>
-                  {(isPosting || isUpdating) && (
-                    <div className="absolute right-0 top-0 -mr-1 -mt-1">
+        <div className="mt-6">
+          {address ? (
+            <div className="flex items-center gap-x-6">
+              <button disabled={isPending || !formattedGasFee} type="submit" className={classNames(isPending || !formattedGasFee ? 'cursor-not-allowed opacity-50' : '', 'btn btn-secondary relative flex items-center gap-1')}>
+                {isPending && (
+                  <div className="text-gray-700">
+                    <Spin />
+                  </div>
+                )}
+                <span>Submit</span>
+                {(isPosting || isUpdating) && (
+                  <div className="absolute right-0 top-0 -mr-1 -mt-1">
+                    <Ping />
+                  </div>
+                )}
+              </button>
+              {errorMsg && <span className="text-sm text-red-600">{errorMsg}</span>}
+              {(isEstimating || formattedGasFee) && (
+                <span className="relative text-sm">
+                  {isEstimating && (
+                    <div className="absolute right-0 top-0 -mr-4 -mt-1">
                       <Ping />
                     </div>
                   )}
-                </button>
-                {errorMsg && <span className="text-sm text-red-600">{errorMsg}</span>}
-                {(isEstimating || formattedGasFee) && (
-                  <span className="relative text-sm">
-                    {isEstimating && (
-                      <div className="absolute right-0 top-0 -mr-4 -mt-1">
-                        <Ping />
-                      </div>
-                    )}
-                    <span>Estimated gas: {isEstimating ? 'Estimating...' : formattedGasFee}</span>
-                  </span>
-                )}
-              </div>
-            ) : (
-              <span className="font-medium">Please connect wallet</span>
-            )}
-          </div>
+                  <span>Estimated gas: {isEstimating ? 'Estimating...' : formattedGasFee}</span>
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="font-medium">Please connect wallet</span>
+          )}
         </div>
       </form>
       <Notification isOpen={isOpen} setIsOpen={setIsOpen} hash={txHash} isLoading={isLoading} isSuccess={isSuccess} />
