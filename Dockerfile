@@ -37,8 +37,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
-RUN mkdir .next
-RUN chown nodejs:nodejs .next
+RUN mkdir .next data
+RUN chown nodejs:nodejs .next data
 
 COPY --from=builder --chown=nodejs:nodejs /app/public ./public
 COPY --from=builder --chown=nodejs:nodejs /app/.next/standalone ./

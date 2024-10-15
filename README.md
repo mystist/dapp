@@ -16,7 +16,8 @@ Highlights:
 - support eip1559 gas estimation and send transaction with suggested buffer
 - big number handling with bignumber.js
 - transaction history page suspense with react server component and support refresh new data when switch network
-- api post with next server actions
+- api fetch/post with next server actions, no api router
+- infrastructure as code use terraform, CI/CD with github actions on aws ECS fargate
 
 Todo:
 - multicall support from Contract side
@@ -37,3 +38,18 @@ Notes:
 Deprecated:
 - use cookie storage as initial state to avoid a flash of "empty" data before hydration
 - basic / advanced wallet toggle to connect with built in logic or the rainbowkit modal
+
+## Development
+
+Run on localhost:
+
+```bash
+pnpm i
+pnpm dev
+```
+
+Git workflow(Chunk based development):  
+Develop on the develop or feat_<your_feature_name> branch, once the feature is complete, submit a Pull Request from develop to main.
+
+CI/CD:  
+Merge PR from master to dev/staging/production will build and deploy the relevant environment
